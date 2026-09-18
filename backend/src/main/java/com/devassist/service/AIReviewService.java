@@ -4,10 +4,19 @@ import com.devassist.dto.AIReviewFinding;
 import com.devassist.dto.AIReviewResponse;
 import com.devassist.model.Finding;
 import com.devassist.model.Review;
+import com.devassist.model.ReviewStatus;
 import com.devassist.repository.FindingRepository;
 import com.devassist.repository.ReviewRepository;
 import com.devassist.service.ai.LLMProvider;
+import com.devassist.service.github.GitHubDiffParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.devassist.model.ReviewStatus;
+import com.devassist.service.github.GitHubDiffParser;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import java.time.LocalDateTime;
+
 import org.springframework.stereotype.Service;
 
 @Service
@@ -69,6 +78,82 @@ public class AIReviewService {
             reviewRepository.save(review);
 
             throw new RuntimeException("AI review failed", e);
+        }
+    }
+
+    public Review runGitHubPRReview(
+            String repository,
+            Integer pullRequestNumber,
+            String commitSha,
+            List<GitHubDiffParser.ParsedDiff> files
+    ) {
+        Review review = new Review();
+
+        review.setRepository(repository);
+        review.setPullRequestNumber(pullRequestNumber);
+        review.setCommitSha(commitSha);
+        review.setProvider(llmProvider.getName());
+        review.setStatus(ReviewStatus.IN_PROGRESS);
+        review.setCreatedAt(LocalDateTime.now());
+
+        review = reviewRepository.save(review);
+
+        try {
+            for (GitHubDiffParser.ParsedDiff file : files) {
+
+                String aiResponse = llmProvider.reviewCode(
+                        "File: " + file.filePath() +
+                        "\n\nCode:\n" + file.code()
+                );
+
+                AIReviewResponse parsedResponse =
+                        objectMapper.readValue(
+                                aiResponse,
+                                AIReviewResponse.class
+                        );
+
+                for (AIReviewFinding aiFinding : parsedResponse.findings()) {
+
+                    Finding finding = new Finding();
+
+                    finding.setReview(review);
+
+                    String filePath = aiFinding.filePath();
+
+                    if (filePath == null || filePath.isBlank()) {
+                        filePath = file.filePath();
+                    }
+
+                    finding.setFilePath(filePath);
+                    finding.setLineNumber(aiFinding.lineNumber());
+                    finding.setCategory(aiFinding.category());
+                    finding.setSeverity(aiFinding.severity());
+                    finding.setTitle(aiFinding.title());
+                    finding.setDescription(aiFinding.description());
+                    finding.setSuggestedFix(aiFinding.suggestedFix());
+                    finding.setConfidence(aiFinding.confidence());
+
+                    findingRepository.save(finding);
+                    review.addFinding(finding);
+                }
+            }
+
+            review.setStatus(ReviewStatus.COMPLETED);
+            review.setCompletedAt(LocalDateTime.now());
+
+            reviewRepository.save(review);
+
+            return reviewRepository.findById(review.getId())
+                    .orElseThrow(() -> new RuntimeException("Review not found"));
+
+        } catch (Exception e) {
+            review.setStatus(ReviewStatus.FAILED);
+            reviewRepository.save(review);
+
+            throw new RuntimeException(
+                    "GitHub PR AI review failed",
+                    e
+            );
         }
     }
 }

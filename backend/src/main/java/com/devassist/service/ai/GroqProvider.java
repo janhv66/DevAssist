@@ -41,13 +41,30 @@ public class GroqProvider implements LLMProvider {
     @Override
     public String reviewCode(String code) {
         String prompt = """
-                You are an expert software code reviewer.
+                You are an expert software engineer performing a code review.
 
-                Analyze the following code for:
-                - Bugs
-                - Security vulnerabilities
-                - Performance issues
-                - Maintainability problems
+                Review ONLY the code provided below.
+
+                Identify concrete, actionable problems that could cause:
+                - incorrect behavior or runtime errors
+                - security vulnerabilities
+                - performance problems
+                - maintainability problems
+
+                Be especially careful about:
+                - division by zero
+                - null pointer risks
+                - array/index errors
+                - incorrect conditions
+                - resource leaks
+                - unsafe input handling
+                - obvious logic errors
+
+                Do not invent problems.
+                Do not invent file paths.
+                Do not invent line numbers.
+
+                If the code contains a real bug, report it.
 
                 Return ONLY valid JSON.
                 Do not use Markdown.
@@ -57,28 +74,31 @@ public class GroqProvider implements LLMProvider {
 
                 {
                 "findings": [
-                        {
-                        "filePath": "string",
-                        "lineNumber": 1,
-                        "category": "BUG",
-                        "severity": "HIGH",
-                        "title": "string",
-                        "description": "string",
-                        "suggestedFix": "string",
-                        "confidence": 0.95
-                        }
+                {
+                "filePath": "string or null",
+                "lineNumber": 1,
+                "category": "BUG",
+                "severity": "HIGH",
+                "title": "string",
+                "description": "string",
+                "suggestedFix": "string",
+                "confidence": 0.95
+                }
                 ]
                 }
 
                 Rules:
-                - category must be one of: BUG, SECURITY, PERFORMANCE, MAINTAINABILITY, STYLE
-                - severity must be one of: CRITICAL, HIGH, MEDIUM, LOW
+                - category must be one of:
+                BUG, SECURITY, PERFORMANCE, MAINTAINABILITY, STYLE
+                - severity must be one of:
+                CRITICAL, HIGH, MEDIUM, LOW
                 - confidence must be between 0 and 1
-                - If there are no issues, return an empty findings array.
-                - Do not invent file paths or line numbers. If they are unknown, use null.
+                - If there are no real issues, return an empty findings array.
+                - If the file path is unknown, use null.
+                - If the exact line number is unknown, use null.
                 - Return only the JSON object.
 
-                Code to review:
+                File under review:
                 %s
                 """.formatted(code);
 
