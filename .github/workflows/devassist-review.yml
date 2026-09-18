@@ -12,4 +12,5 @@ jobs:
       - name: Trigger DevAssist review
         run: |
           curl -X POST \
+            -H "X-DevAssist-Secret: ${{ secrets.DEVASSIST_WEBHOOK_SECRET }}" \
             "${{ secrets.DEVASSIST_API_URL }}/api/github/repos/${{ github.repository_owner }}/${{ github.event.repository.name }}/pulls/${{ github.event.pull_request.number }}/review"
