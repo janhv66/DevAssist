@@ -7,6 +7,9 @@ import com.devassist.service.github.GitHubDiffParser;
 import com.devassist.service.github.GitHubPullRequest;
 import com.devassist.service.github.GitHubService;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 
 @RestController
 @RequestMapping("/api/github")
@@ -43,8 +46,15 @@ public class GitHubController {
     public ReviewResponse reviewPullRequest(
             @PathVariable String owner,
             @PathVariable String repo,
-            @PathVariable int pullNumber
+            @PathVariable int pullNumber,
+            @RequestHeader("X-DevAssist-Secret") String providedSecret
     ) {
+        if (!webhookSecret.equals(providedSecret)) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid DevAssist webhook secret"
+            );
+        }
         String diff = gitHubService.getPullRequestDiff(
                 owner,
                 repo,
@@ -85,6 +95,7 @@ public class GitHubController {
                     finding
             );
         }
+        
 
         return new ReviewResponse(
                 review.getId(),
@@ -110,5 +121,8 @@ public class GitHubController {
                         ))
                         .toList()
         );
+
     }
+    @Value("${devassist.webhook.secret}")
+    private String webhookSecret;
 }
