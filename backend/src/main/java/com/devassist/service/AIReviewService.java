@@ -128,17 +128,30 @@ public class AIReviewService {
 
                 for (AIReviewFinding aiFinding : parsedResponse.findings()) {
 
-                    Finding finding = new Finding();
-
-                    finding.setReview(review);
-
                     String filePath = aiFinding.filePath();
 
                     if (filePath == null || filePath.isBlank()) {
                         filePath = file.filePath();
                     }
 
-                    finding.setFilePath(filePath);
+                    final String findingFilePath = filePath;
+
+                    boolean validChangedLine = file.changedLines().stream()
+                            .anyMatch(line ->
+                                    line.added()
+                                            && line.lineNumber() == aiFinding.lineNumber()
+                                            && findingFilePath.equals(file.filePath())
+                            );
+
+                    if (!validChangedLine) {
+                        continue;
+                    }
+
+                    Finding finding = new Finding();
+
+                    finding.setReview(review);
+
+                    finding.setFilePath(findingFilePath);
                     finding.setLineNumber(aiFinding.lineNumber());
                     finding.setCategory(aiFinding.category());
                     finding.setSeverity(aiFinding.severity());
