@@ -41,8 +41,20 @@ public class ReviewService {
         Review review = reviewRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Review not found"));
 
-        List<FindingResponse> findings = review.getFindings()
-                .stream()
+        return toResponse(review);
+    }
+
+    private ReviewResponse toResponse(Review review) {
+        return new ReviewResponse(
+                review.getId(),
+                review.getRepository(),
+                review.getPullRequestNumber(),
+                review.getCommitSha(),
+                review.getStatus(),
+                review.getProvider(),
+                review.getCreatedAt(),
+                review.getCompletedAt(),
+                review.getFindings().stream()
                 .map(finding -> new FindingResponse(
                         finding.getId(),
                         finding.getFilePath(),
@@ -54,18 +66,13 @@ public class ReviewService {
                         finding.getSuggestedFix(),
                         finding.getConfidence()
                 ))
-                .toList();
-
-        return new ReviewResponse(
-                review.getId(),
-                review.getRepository(),
-                review.getPullRequestNumber(),
-                review.getCommitSha(),
-                review.getStatus(),
-                review.getProvider(),
-                review.getCreatedAt(),
-                review.getCompletedAt(),
-                findings
+                .toList()
         );
+    }
+    public List<ReviewResponse> getAllReviews() {
+        return reviewRepository.findAll()
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 }

@@ -10,14 +10,10 @@ import com.devassist.repository.ReviewRepository;
 import com.devassist.service.ai.LLMProvider;
 import com.devassist.service.github.GitHubDiffParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.devassist.model.ReviewStatus;
-import com.devassist.service.github.GitHubDiffParser;
+import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.List;
-
-import java.time.LocalDateTime;
-
-import org.springframework.stereotype.Service;
 
 @Service
 public class AIReviewService {
@@ -43,7 +39,7 @@ public class AIReviewService {
         Review review = reviewRepository.findById(reviewId)
                 .orElseThrow(() -> new RuntimeException("Review not found"));
 
-        review.setStatus(com.devassist.model.ReviewStatus.IN_PROGRESS);
+        review.setStatus(ReviewStatus.IN_PROGRESS);
         reviewRepository.save(review);
 
         try {
@@ -68,13 +64,13 @@ public class AIReviewService {
                 findingRepository.save(finding);
             }
 
-            review.setStatus(com.devassist.model.ReviewStatus.COMPLETED);
-            review.setCompletedAt(java.time.LocalDateTime.now());
+            review.setStatus(ReviewStatus.COMPLETED);
+            review.setCompletedAt(LocalDateTime.now());
 
             return reviewRepository.save(review);
 
         } catch (Exception e) {
-            review.setStatus(com.devassist.model.ReviewStatus.FAILED);
+            review.setStatus(ReviewStatus.FAILED);
             reviewRepository.save(review);
 
             throw new RuntimeException("AI review failed", e);
@@ -101,10 +97,28 @@ public class AIReviewService {
         try {
             for (GitHubDiffParser.ParsedDiff file : files) {
 
-                String aiResponse = llmProvider.reviewCode(
+                StringBuilder changedCode = new StringBuilder();
+
+                for (GitHubDiffParser.ChangedLine line : file.changedLines()) {
+                    changedCode
+                            .append("Line ")
+                            .append(line.lineNumber())
+                            .append(": ")
+                            .append(line.content())
+                            .append("\n");
+                }
+
+                String prompt =
                         "File: " + file.filePath() +
-                        "\n\nCode:\n" + file.code()
-                );
+                        "\n\n" +
+                        "Analyze ONLY the changed lines listed below.\n" +
+                        "Do not report issues from unchanged code.\n" +
+                        "Do not invent files or line numbers.\n" +
+                        "Only report a finding if there is a concrete, actionable issue in the changed code.\n\n" +
+                        "Changed lines:\n" +
+                        changedCode;
+
+                String aiResponse = llmProvider.reviewCode(prompt);
 
                 AIReviewResponse parsedResponse =
                         objectMapper.readValue(

@@ -1,5 +1,6 @@
 package com.devassist.controller;
 
+import java.util.List;
 import com.devassist.dto.CreateReviewRequest;
 import com.devassist.dto.ReviewResponse;
 import com.devassist.model.Review;
@@ -33,5 +34,9 @@ public class ReviewController {
     @GetMapping("/{id}")
     public ReviewResponse getReview(@PathVariable Long id) {
         return reviewService.getReview(id);
+    }
+    @GetMapping
+    public List<ReviewResponse> getAllReviews() {
+        return reviewService.getAllReviews();
     }
 }
