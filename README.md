@@ -21,42 +21,9 @@ It analyzes changed code using an LLM, identifies actionable issues, stores revi
 
 ## Architecture
 
-```text
-                         GitHub Pull Request
-                                  |
-                                  v
-                         GitHub Actions
-                                  |
-                                  v
-                    DevAssist Spring Boot API
-                                  |
-                    +-------------+-------------+
-                    |                           |
-                    v                           v
-              GitHub Diff                  Pull Request
-                Parser                    Metadata / SHA
-                    |
-                    v
-             Changed Lines
-                    |
-                    v
-              Groq LLM API
-                    |
-                    v
-             AI Review Findings
-                    |
-                    v
-        Validate Against Changed Lines
-                    |
-                    v
-              PostgreSQL
-                    |
-                    +----------------------+
-                    |                      |
-                    v                      v
-             GitHub Inline          React Dashboard
-              PR Comments           Review History
-```
+![DevAssist Architecture](docs/architecture.png)
+
+DevAssist follows an event-driven code review workflow where GitHub pull requests trigger GitHub Actions, which invoke the Spring Boot backend. The backend retrieves the PR diff, extracts changed lines, sends them to Groq for analysis, validates the generated findings, stores valid findings in PostgreSQL, and posts inline comments back to GitHub.
 
 ## Tech Stack
 
